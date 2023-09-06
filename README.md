@@ -8,6 +8,9 @@ Workshops included are:
 * [lab-virtual-machine](workshops/lab-virtual-machine) - A workshop
   demonstrating creation of a virtual machine with each workshop session.
 
+* [lab-suspend-instance](workshops/lab-suspend-instance) - A workshop
+  demonstrating how the virtual machine can be suspended using `virtcrtl`.
+
 To deploy all the workshops run:
 
 ```
