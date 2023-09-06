@@ -1,0 +1,21 @@
+apiVersion: training.educates.dev/v1beta1
+kind: TrainingPortal
+metadata:
+  name: labs-kubevirt-testing
+spec:
+  portal:
+    registration:
+      type: anonymous
+    updates:
+      workshop: true
+    sessions:
+      maximum: 1
+    workshop:
+      defaults:
+        reserved: 0
+  workshops:
+  - name: lab-virtual-machine
+    expires: 40m
+    overtime: 10m
+    deadline: 60m
+    orphaned: 5m
