@@ -1,0 +1,169 @@
+apiVersion: training.educates.dev/v1beta1
+kind: Workshop
+metadata:
+  name: "lab-suspend-instance"
+spec:
+  title: "Suspend Instance Test"
+  description: "Test of suspending a VirtualMachine."
+  publish:
+    image: $(image_repository)/labs-kubevirt-testing/lab-suspend-instance-files:$(workshop_version)
+  workshop:
+    files:
+    - image:
+        url: $(image_repository)/labs-kubevirt-testing/lab-suspend-instance-files:$(workshop_version)
+      includePaths:
+      - workshop/**
+  session:
+    namespaces:
+      budget: x-large
+      limits:
+        max:
+          memory: 2.5Gi
+    applications:
+      terminal:
+        enabled: true
+        layout: split
+      editor:
+        enabled: true
+      console:
+        enabled: true
+      examiner:
+        enabled: true
+    objects:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: virtctl-user
+      rules:
+      - apiGroups:
+        - kubevirt.io
+        resources:
+        - virtualmachines
+        - virtualmachineinstances
+        verbs:
+        - get
+        - list
+        - watch
+        - patch
+        - update
+      - apiGroups:
+        - subresources.kubevirt.io
+        resources:
+        - virtualmachineinstances/pause
+        - virtualmachineinstances/unpause
+        verbs:
+        - update
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: virtctl-user
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: Role
+        name: virtctl-user
+      subjects:
+      - kind: ServiceAccount
+        namespace: $(workshop_namespace)
+        name: $(service_account)
+    - apiVersion: secrets.educates.dev/v1beta1
+      kind: SecretCopier
+      metadata:
+        name: $(session_name)-ssh-keys
+      spec:
+        rules:
+        - sourceSecret:
+            name: $(ssh_keys_secret)
+            namespace: $(workshop_namespace)
+          targetNamespaces:
+            nameSelector:
+              matchNames:
+              - $(session_namespace)
+          targetSecret:
+            name: ssh-keys
+    - apiVersion: kubevirt.io/v1
+      kind: VirtualMachine
+      metadata:
+        name: testing
+        labels:
+          kubevirt.io/vm: testing
+      spec:
+        running: true
+        template:
+          metadata:
+            labels:
+              kubevirt.io/vm: testing
+          spec:
+            terminationGracePeriodSeconds: 30
+            accessCredentials:
+            - sshPublicKey:
+                source:
+                  secret:
+                    secretName: ssh-keys
+                propagationMethod:
+                  configDrive: {}
+            domain:
+              cpu:
+                cores: 2
+              resources:
+                limits:
+                  memory: 2Gi
+                requests:
+                  memory: 2Gi
+              devices:
+                disks:
+                - name: disk1
+                  disk:
+                    bus: virtio
+                - disk:
+                    bus: virtio
+                  name: cloudinitdisk
+                interfaces:
+                - name: default
+                  masquerade: {}
+            networks:
+            - name: default
+              pod: {}
+            volumes:
+            - name: disk1
+              containerDisk:
+                image: $(oci_image_cache)/containerdisks/fedora:37
+            - name: cloudinitdisk
+              cloudInitConfigDrive:
+                userData: |-
+                  #cloud-config
+                  password: $(services_password)
+                  chpasswd: { expire: False }
+    - apiVersion: v1
+      kind: Service
+      metadata:
+        name: testing
+      spec:
+        selector:
+          kubevirt.io/vm: testing
+        ports:
+          - name: ssh
+            protocol: TCP
+            port: 22
+            targetPort: 22
+          - name: http
+            protocol: TCP
+            port: 80
+            targetPort: 80
+          - name: https
+            protocol: TCP
+            port: 443
+            targetPort: 443
+  environment:
+    images:
+      ingress:
+        enabled: true
+      storage: 1Gi
+      registries:
+      - urls:
+        - https://quay.io/containerdisks
+        onDemand: true
+        tlsVerify: true
+        content:
+        - prefix: "**"
+          destination: /containerdisks
+          stripPrefix: true

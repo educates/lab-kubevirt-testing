@@ -1,0 +1,5 @@
+#!/bin/bash
+
+VM=$1
+
+exec ssh -o "StrictHostKeyChecking no" fedora@$VM.$SESSION_NAMESPACE.svc.$CLUSTER_DOMAIN date
